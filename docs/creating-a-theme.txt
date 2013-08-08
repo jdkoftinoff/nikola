@@ -13,22 +13,28 @@ to explain it. So, here it is. I'll explain how to create a theme (almost) from 
 you can take an existing theme and modify only parts of it via inheritance, but that's for another
 document.
 
-I will try to create a theme that looks like `Vinicius Massuchetto's Monospace Theme <http://vinicius.soylocoporti.org.br/monospace-wordpress-theme/#.UN4e9lLzu3c>`_.
+I will try to create a theme that looks like `Vinicius Massuchetto's Monospace Theme <http://wordpress.org/themes/monospace>`_.
 
 .. TEASER_END
 
 Starting The Theme
 ------------------
 
-First, we create a testing site, and copy the orphan theme from nikola's sources into the right place::
+First we will create a testing site::
 
     $ nikola init --demo monospace-site
     A new site with some sample data has been created at monospace-site.
     See README.txt in that folder for more information.
 
     $ cd monospace-site/
+
+Then we will install the orphan theme, one of the requirement will be to have python-request installed::
+
+    $ pip install requests
     $ mkdir themes
-    $ cp -RL ~/Desktop/proyectos/nikola/nikola/nikola/data/themes/orphan/ themes/monospace
+    $ nikola install_theme orphan
+    then rename the orphan theme to monospace
+    $ mv themes/orphan themes/monospace
 
 The next step is to make the testing site use this new theme, by editing ``conf.py`` and
 changing the ``THEME`` option::

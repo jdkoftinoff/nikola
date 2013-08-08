@@ -41,7 +41,7 @@ class CommandBuild(Command):
 
     name = "serve"
     doc_usage = "[options]"
-    doc_purpose = "Start the test webserver."
+    doc_purpose = "start the test webserver"
 
     cmd_options = (
         {
@@ -148,4 +148,3 @@ class OurHTTPRequestHandler(SimpleHTTPRequestHandler):
         # end no-cache patch
         self.end_headers()
         return f
-

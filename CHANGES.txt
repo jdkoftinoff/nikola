@@ -1,9 +1,18 @@
-New in Master
+New in master
 =============
 
 Features
 --------
 
+* Separate slides.tmpl template so that non-bootstrap themes can support them.
+
+New in 5.5.1
+============
+
+Features
+--------
+
+* New FEED_LENGTH option, defaults to 10 (Issue #549)
 * Added no-cache headers to ``nikola serve`` (Issue #545)
 * New mincss command, removes unused and redundant CSS (Issue #364)
 * New chart directive based on pygal
@@ -12,6 +21,11 @@ Features
 Bugfixes
 --------
 
+* Remove cache/ when running ``nikola clean`` (Issue #558)
+* Mark bundles as "cleanable" (Issue #558)
+* Made ``nikola help`` much more resilient against broken conf.py (Issue #550)
+* Show docinfo part of docutils output (Issue #556)
+* Exit with error code when there is an error (Issue #543)
 * Revamped ``requirements.txt`` — now ``requirements.txt`` contains the
   required dependencies and ``requirements-full.txt`` contains the
   optional ones (Issue #547)
