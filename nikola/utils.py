@@ -68,7 +68,7 @@ __all__ = ['get_theme_path', 'get_theme_chain', 'load_messages', 'copy_tree',
            'generic_rss_renderer', 'copy_file', 'slugify', 'unslugify',
            'to_datetime', 'apply_filters', 'config_changed', 'get_crumbs',
            'get_tzname', 'get_asset_path', '_reload', 'unicode_str', 'bytes_str',
-           'unichr', 'Functionary', 'LocaleBorg', 'sys_encode', 'sys_decode']
+           'unichr', 'Functionary', 'LocaleBorg', 'sys_encode', 'sys_decode', 'show_msg']
 
 
 ENCODING = sys.getfilesystemencoding() or sys.stdin.encoding
@@ -207,7 +207,7 @@ def load_messages(themes, translations, default_lang):
     oldpath = sys.path[:]
     for theme_name in themes[::-1]:
         msg_folder = os.path.join(get_theme_path(theme_name), 'messages')
-        default_folder = os.path.join(get_theme_path('default'), 'messages')
+        default_folder = os.path.join(get_theme_path('base'), 'messages')
         sys.path.insert(0, default_folder)
         sys.path.insert(0, msg_folder)
         english = __import__('messages_en')
@@ -275,7 +275,7 @@ def generic_rss_renderer(lang, title, link, description, timeline, output_path,
         args = {
             'title': post.title(lang),
             'link': post.permalink(lang, absolute=True),
-            'description': post.text(lang, teaser_only=rss_teasers),
+            'description': post.text(lang, teaser_only=rss_teasers, really_absolute=True),
             'guid': post.permalink(lang, absolute=True),
             # PyRSS2Gen's pubDate is GMT time.
             'pubDate': (post.date if post.date.tzinfo is None else
@@ -550,16 +550,16 @@ def get_asset_path(path, themes, files_folders={'files': ''}):
     If the asset is not provided by a theme, then it will be checked for
     in the FILES_FOLDERS
 
-    >>> print(get_asset_path('assets/css/rst.css', ['site', 'default']))
-    nikola/data/themes/default/assets/css/rst.css
+    >>> print(get_asset_path('assets/css/rst.css', ['bootstrap', 'base']))
+    nikola/data/themes/base/assets/css/rst.css
 
-    >>> print(get_asset_path('assets/css/theme.css', ['site', 'default']))
-    nikola/data/themes/site/assets/css/theme.css
+    >>> print(get_asset_path('assets/css/theme.css', ['bootstrap', 'base']))
+    nikola/data/themes/bootstrap/assets/css/theme.css
 
-    >>> print(get_asset_path('nikola.py', ['site', 'default'], {'nikola': ''}))
+    >>> print(get_asset_path('nikola.py', ['bootstrap', 'base'], {'nikola': ''}))
     nikola/nikola.py
 
-    >>> print(get_asset_path('nikola/nikola.py', ['site', 'default'],
+    >>> print(get_asset_path('nikola/nikola.py', ['bootstrap', 'base'],
     ... {'nikola':'nikola'}))
     nikola/nikola.py
 
@@ -581,6 +581,12 @@ def get_asset_path(path, themes, files_folders={'files': ''}):
 
     # whatever!
     return None
+
+
+def show_msg(msg):
+    """Prints a message in stderr, so it bypasses doit's capture."""
+    sys.stderr.write(msg)
+    sys.stderr.flush()
 
 
 class LocaleBorg:

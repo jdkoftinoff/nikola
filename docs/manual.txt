@@ -8,7 +8,7 @@
 The Nikola Handbook
 ===================
 
-:Version: 5.5.1+
+:Version: 6.0.0+beta1
 
 .. class:: alert alert-info pull-right
 
@@ -312,35 +312,38 @@ part of the site using task names, for example ``nikola build render_pages``, an
 Nikola also has other commands besides ``build``::
 
     $ nikola help
-    Nikola
-    Available commands:
-      nikola auto                 automatically execute tasks when a dependency changes
-      nikola bootswatch_theme     given a swatch name from bootswatch.com and a parent theme, creates a custom theme
-      nikola build                run tasks
-      nikola check                check links and files in the generated site
-      nikola clean                clean action / remove targets
-      nikola console              start an interactive python console with access to your site and configuration
-      nikola deploy               deploy the site
-      nikola dumpdb               dump dependency DB
-      nikola forget               clear successful run status from internal DB
-      nikola help                 show help
-      nikola ignore               ignore task (skip) on subsequent runs
-      nikola import_blogger       import a blogger dump
-      nikola import_feed          import a RSS/Atom dump
-      nikola import_wordpress     import a WordPress dump
-      nikola init                 create a Nikola site in the specified folder
-      nikola install_theme        install theme into current site
-      nikola list                 list tasks from dodo file
-      nikola mincss               apply mincss to the generated site
-      nikola new_post             create a new blog post or site page
-      nikola run                  run tasks
-      nikola serve                start the test webserver
-      nikola strace               use strace to list file_deps and targets
-      nikola version              print the Nikola version number
+        Nikola is a tool to create static websites and blogs. For full documentation and more information,
+        please visit http://nikola.ralsina.com.ar
 
-      nikola help                 show help / reference
-      nikola help <command>       show command usage
-      nikola help <task-name>     show task usage
+
+        Available commands:
+        nikola auto                 automatically detect site changes, rebuild and optionally refresh a browser
+        nikola bootswatch_theme     given a swatch name from bootswatch.com and a parent theme, creates a custom theme
+        nikola build                run tasks
+        nikola check                check links and files in the generated site
+        nikola clean                clean action / remove targets
+        nikola console              start an interactive python console with access to your site and configuration
+        nikola deploy               deploy the site
+        nikola dumpdb               dump dependency DB
+        nikola forget               clear successful run status from internal DB
+        nikola help                 show help
+        nikola ignore               ignore task (skip) on subsequent runs
+        nikola import_blogger       import a blogger dump
+        nikola import_feed          import a RSS/Atom dump
+        nikola import_wordpress     import a WordPress dump
+        nikola init                 create a Nikola site in the specified folder
+        nikola install_theme        install theme into current site
+        nikola list                 list tasks from dodo file
+        nikola mincss               apply mincss to the generated site
+        nikola new_post             create a new blog post or site page
+        nikola run                  run tasks
+        nikola serve                start the test webserver
+        nikola strace               use strace to list file_deps and targets
+        nikola version              print the Nikola version number
+
+        nikola help                 show help / reference
+        nikola help <command>       show command usage
+        nikola help <task-name>     show task usage
 
 
 The ``serve`` command starts a web server so you can see the site you are creating::
@@ -410,6 +413,15 @@ source for the content, and ``description`` is mostly useful for SEO.
 You can add your own metadata fields in the same manner, if you use a theme that
 supports them (for example: ``.. author: John Doe``)
 
+To add these metadata fields to all new posts by default, you can set the
+variable ``ADDITIONAL_METADATA`` in your configuration.  For example, you can
+add the author metadata to all new posts by default, by adding the following
+to your configuration ::
+
+    ADDITIONAL_METADATA = {
+        'author': 'John Doe'
+    }
+
 .. sidebar:: Other Metadata Fields
 
    Nikola will also use other metadata fields:
@@ -431,6 +443,9 @@ supports them (for example: ``.. author: John Doe``)
        The post will be encrypted and invisible until the reader enters the password.
        Also, the post's sourcecode will not be available.
 
+   category
+       Like tags, except each post can have only one, and they usually have
+       more descriptive names.
 
 .. note:: The Two-File Format
 
@@ -551,11 +566,16 @@ Drafts
 
 If you add a "draft" tag to a post, then it will not be shown in indexes and feeds.
 It *will* be compiled, and if you deploy it it *will* be made available, so use
-with care.
+with care. If you wish your drafts to be not available in your deployed site, you
+can set ``DEPLOY_DRAFTS = False`` in your configuration.
 
-Also if a post has a date in the future, it will not be shown in indexes until you rebuild after
-that date. This behaviour can be disabled by setting ``FUTURE_IS_NOW = True`` in your
-configuration, which will make future posts be published immediately.
+Also if a post has a date in the future, it will not be shown in indexes until
+you rebuild after that date. This behaviour can be disabled by setting
+``FUTURE_IS_NOW = True`` in your configuration, which will make future posts be
+published immediately.  Posts dated in the future are *not* deployed by default
+(when ``FUTURE_IS_NOW = False``).  To make future posts available in the
+deployed site, you can set ``DEPLOY_FUTURE = True`` in your configuration.
+Generally, you want FUTURE_IS_NOW and DEPLOY_FUTURE to be the same value.
 
 Retired Posts
 ~~~~~~~~~~~~~
@@ -563,6 +583,57 @@ Retired Posts
 If you add a "retired" tag to a post, then it will not be shown in indexes and feeds.
 It *will* be compiled, and if you deploy it it *will* be made available, so it will
 not generate 404s for people who had linked to it.
+
+Queuing Posts
+~~~~~~~~~~~~~
+
+Some blogs tend to have new posts based on a schedule (for example,
+every Mon, Wed, Fri) but the blog authors don't like to manually
+schedule their posts.  You can schedule your blog posts based on a
+rule, by specifying a rule in the ``SCHEDULE_RULE`` in your
+configuration.  You can either post specific blog posts according to
+this schedule by using the ``--schedule`` flag on the ``new_post``
+command or post all new posts according to this schedule by setting
+``SCHEDULE_ALL = True`` in your configuration. (Note: This feature
+requires that the ``FUTURE_IS_NOW`` setting is set to ``False``)
+
+For example, if you would like to schedule your posts to be on every
+Monday, Wednesday and Friday at 7am, add the following
+``SCHEDULE_RULE`` to your configuration ::
+
+    SCHEDULE_RULE = 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=7;BYMINUTE=0;BYSECOND=0'
+
+For more details on how to specify a recurrence rule, look at the
+`iCal specification <http://www.kanzaki.com/docs/ical/rrule.html>`_.
+
+Say, you get a free Sunday, and want to write a flurry of new posts,
+or at least posts for the rest of the week, you would run the
+``new_post`` command with the ``--schedule`` flag, as many times as
+you want::
+
+    $ nikola new_post --schedule
+    # Creates a new post to be posted on Monday, 7am.
+    $ nikola new_post -s
+    # Creates a new post to be posted on Wednesday, 7am.
+    $ nikola new_post -s
+    # Creates a new post to be posted on Friday, 7am.
+    .
+    .
+    .
+
+All these posts get queued up according to your schedule, but note
+that you will anyway need to build and deploy your site for the posts
+to appear online.  You can have a cron job that does this regularly.
+
+An additional setting (``SCHEDULE_FORCE_TODAY = True``) lets you tell
+Nikola to make the post today, if you run the ``new_post --schedule``
+after the scheduled hour has passed, and there is no other post
+at/after the scheduled hour.  Concretely, say, you run the ``nikola
+new_post -s`` command at 10am on a Monday (with the schedule rule set
+to the same as above), with no other post on Monday, at/after 7am,
+setting ``SCHEDULE_FORCE_TODAY = True`` will have your post scheduled
+to Monday, instead of being scheduled to Wednesday 7am.
+
 
 Creating a Page
 ---------------
@@ -638,9 +709,28 @@ Template tweaking
     `custom theme <theming.html>`_.
 
 
-Sidebar
-    The 'sidebar_links' option lets you define what links go in the right-hand
-    sidebar, so you can link to important pages, or to other sites.
+Navigation Links
+    The 'NAVIGATION_LINKS' option lets you define what links go in a sidebar or menu
+    (depending on your theme) so you can link to important pages, or to other sites.
+
+    The format is a language-indexed dictionary, where each element is a tuple of
+    tuples which are one of:
+
+    1. A (url, text) tuple, describing a link
+    2. A ((url, text), (url, text), (url, text), title) tuple, describing a submenu / sublist.
+
+    Example::
+
+        NAVIGATION_LINKS = {
+            DEFAULT_LANG: (
+                ('/archive.html', 'Archives'),
+                ('/categories/index.html', 'Tags'),
+                ('/rss.xml', 'RSS'),
+                ((('/foo', 'FOO'),
+                  ('/bar', 'BAR')), 'BAZ'),
+            ),
+        }
+
 
     The ``SEARCH_FORM`` option contains the HTML code for a search form based on
     duckduckgo.com which should always work, but feel free to change it to
@@ -651,12 +741,15 @@ Footer
     the copyright notice. The default shows a text formed using ``BLOG_AUTHOR``,
     ``BLOG_EMAIL``, the date and ``LICENSE``.
 
-Analytics
-    This is probably a misleading name, but the ``ANALYTICS`` option lets you define
-    a HTML snippet that will be added at the bottom of body. The main usage is
-    a Google analytics snippet or something similar, but you can really put anything
-    there.
+BODY_END
+    This option lets you define a HTML snippet that will be added at the bottom of body.
+    The main usage is a Google analytics snippet or something similar, but you can really
+    put anything there. Good place for Javascript.
 
+SOCIAL_BUTTONS_CODE
+    The ``SOCIAL_BUTTONS_CODE`` option lets you define a HTML snippet that will be added
+    at the bottom of body. It defaults to a snippet for AddThis, but you can
+    really put anything there. See `social_buttons.html` for more details.
 
 Adding Files
 ------------
@@ -749,10 +842,38 @@ Comments
 While Nikola creates static sites, there is a minimum level of user interaction you
 are probably expecting: comments.
 
-The default templates contain support for `Disqus <http://disqus.com>`_. All you have
-to do is register a forum, put its short name in the ``DISQUS_FORUM`` option.
+Nikola supports several third party comment systems:
 
-Disqus is a good option because:
+* `Disqus <http://disqus.com>`_
+* `IntenseDebate <http://www.intensedebate.com/>`_
+* `LiveFyre <http://www.livefyre.com/>`_
+* `Moot <http://moot.it>`_
+* `Google+ <http://plus.google.com>`_
+* `Facebook <http://facebook.com>`_
+
+By default it will use Disqus, but you can change by setting ``COMMENT_SYSTEM``
+to one of "disqus", "intensedebate", "livefyre", "moot", "googleplus" or
+"facebook"
+
+.. sidebar:: ``COMMENT_SYSTEM_ID``
+
+   The value of ``COMMENT_SYSTEM_ID`` depends on what comment system you
+   are using and you can see it in the system's admin interface.
+
+   * For Disqus it's called the **shortname**
+   * In IntenseDebate it's the **IntenseDebate site acct**
+   * In LiveFyre it's the **siteId**
+   * In Moot it's your **username**
+   * For Google Plus, ``COMMENT_SYSTEM_ID`` need not be set, but you must
+     `verify your authorship <https://plus.google.com/authorship>`_
+   * For Facebook, you need to `create an app
+     <https://developers.facebook.com/apps>` (turn off sandbox mode!)
+     and get an **App ID**
+
+To use comments in a visible site, you should register with the service and
+then set the ``COMMENT_SYSTEM_ID`` option.
+
+I recommend 3rd party comments, and specially Disqus because:
 
 1) It doesn't require any server-side software on your site
 2) They offer you a way to export your comments, so you can take
@@ -764,12 +885,32 @@ You can disable comments for a post by adding a "nocomments" metadata field to i
 
     .. nocomments: True
 
-.. admonition:: Important
+.. admonition:: Disqus Support
 
    In some cases, when you run the test site, you won't see the comments.
    That can be fixed by adding the disqus_developer flag to the templates
    but it's probably more trouble than it's worth.
 
+.. admonition:: Moot Support
+
+   Moot doesn't support comment counts on index pages, and it requires adding
+   this to your ``conf.py``:
+
+   .. code:: python
+
+        BODY_END = """
+        <script src="//cdn.moot.it/1/moot.min.js"></script>
+        """
+        EXTRA_HEAD_DATA = """
+        <link rel="stylesheet" type="text/css" href="//cdn.moot.it/1/moot.css">
+        <meta name="viewport" content="width=device-width">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        """
+
+.. admonition:: Facebook Support
+
+    You need jQuery, but not because Facebook wants it (see Issue
+    #639).
 
 Image Galleries
 ---------------
@@ -842,7 +983,7 @@ The currently available filters are:
 
       def yui_compressor(infile):
           return runinplace(r'yui-compressor --nomunge %1 -o %2', infile)
-      
+
    You can turn any function into a filter using ``apply_to_file``.
    As a silly example, this would make everything uppercase and totally break
    your website:
@@ -906,6 +1047,18 @@ Restructured Text Extensions
 Nikola includes support for a few directives that are not part of docutils, but which
 we think are handy for website development.
 
+Media
+~~~~~
+
+This directive lets you embed media from a variety of sites automatically by just passing the
+URL of the page.  For example here are two random videos::
+
+    .. media:: http://vimeo.com/72425090
+
+    .. youtube:: http://www.youtube.com/watch?v=wyRpAat5oz0
+
+It supports Instagram, Flickr, Github gists, Funny or Die, and dozens more, thanks to `Micawber <https://github.com/coleifer/micawber>`_
+
 Youtube
 ~~~~~~~
 
@@ -927,8 +1080,7 @@ Once you have that, all you need to do is::
 
     .. vimeo:: 20241459
 
-If you are running python 2.6 or later, or have the json module installed and
-have internet connectivity when generating your site, the height and width of
+If you have internet connectivity when generating your site, the height and width of
 the embedded player will be set to the native height and width of the video.
 You can override this if you wish::
 
@@ -1187,7 +1339,7 @@ Here's a set of example settings for conf.py that should work nicely with the "s
     <input type="text" id="tipue_search_input">
     </span>"""
 
-    ANALYTICS = """
+    BODY_END = """
     <script type="text/javascript" src="/assets/js/tipuesearch_set.js"></script>
     <script type="text/javascript" src="/assets/js/tipuesearch.js"></script>
     <script type="text/javascript">
@@ -1218,7 +1370,6 @@ Mustache
 This task gives you a ``mustache.html`` file which lets you access your whole
 blog without reloading the page, using client-side templates. Makes it much
 faster and modern ;-)
-
 
 License
 -------

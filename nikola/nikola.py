@@ -37,6 +37,11 @@ except ImportError:
     from urllib.parse import urlparse, urlsplit, urljoin  # NOQA
 import warnings
 
+try:
+    import pyphen
+except ImportError:
+    pyphen = None
+
 import lxml.html
 from yapsy.PluginManager import PluginManager
 import pytz
@@ -54,6 +59,7 @@ from .plugin_categories import (
     Command,
     LateTask,
     PageCompiler,
+    RestExtension,
     Task,
     TaskMultiplier,
     TemplateSystem,
@@ -84,6 +90,7 @@ class Nikola(object):
         self.posts_per_year = defaultdict(list)
         self.posts_per_month = defaultdict(list)
         self.posts_per_tag = defaultdict(list)
+        self.posts_per_category = defaultdict(list)
         self.post_per_file = {}
         self.timeline = []
         self.pages = []
@@ -98,11 +105,12 @@ class Nikola(object):
         # This is the default config
         self.config = {
             'ADD_THIS_BUTTONS': True,
-            'ANALYTICS': '',
             'ARCHIVE_PATH': "",
             'ARCHIVE_FILENAME': "archive.html",
+            'BODY_END': "",
             'CACHE_FOLDER': 'cache',
             'CODE_COLOR_SCHEME': 'default',
+            'COMMENT_SYSTEM': 'disqus',
             'COMMENTS_IN_GALLERIES': False,
             'COMMENTS_IN_STORIES': False,
             'CONTENT_FOOTER': '',
@@ -112,12 +120,13 @@ class Nikola(object):
             'DEFAULT_LANG': "en",
             'DEPLOY_COMMANDS': [],
             'DISABLED_PLUGINS': (),
-            'DISQUS_FORUM': 'nikolademo',
+            'COMMENT_SYSTEM_ID': 'nikolademo',
             'ENABLED_EXTRAS': (),
             'EXTRA_HEAD_DATA': '',
             'FAVICONS': {},
             'FEED_LENGTH': 10,
             'FILE_METADATA_REGEXP': None,
+            'ADDITIONAL_METADATA': {},
             'FILES_FOLDERS': {'files': ''},
             'FILTERS': {},
             'GALLERY_PATH': 'galleries',
@@ -125,6 +134,7 @@ class Nikola(object):
             'GZIP_EXTENSIONS': ('.txt', '.htm', '.html', '.css', '.js', '.json'),
             'HIDE_SOURCELINK': False,
             'HIDE_UNTRANSLATED_POSTS': False,
+            'HYPHENATE': False,
             'INDEX_DISPLAY_POST_COUNT': 10,
             'INDEX_FILE': 'index.html',
             'INDEX_TEASERS': False,
@@ -134,6 +144,7 @@ class Nikola(object):
             'LICENSE': '',
             'LINK_CHECK_WHITELIST': [],
             'LISTINGS_FOLDER': 'listings',
+            'NAVIGATION_LINKS': None,
             'MARKDOWN_EXTENSIONS': ['fenced_code', 'codehilite'],
             'MAX_IMAGE_SIZE': 1280,
             'MATHJAX_CONFIG': '',
@@ -162,12 +173,13 @@ class Nikola(object):
             'RSS_TEASERS': True,
             'SEARCH_FORM': '',
             'SLUG_TAG_PATH': True,
+            'SOCIAL_BUTTONS_CODE': SOCIAL_BUTTONS_CODE,
             'STORY_INDEX': False,
             'STRIP_INDEXES': False,
             'SITEMAP_INCLUDE_FILELESS_DIRS': True,
             'TAG_PATH': 'categories',
             'TAG_PAGES_ARE_INDEXES': False,
-            'THEME': 'site',
+            'THEME': 'bootstrap',
             'THEME_REVEAL_CONGIF_SUBTHEME': 'sky',
             'THEME_REVEAL_CONGIF_TRANSITION': 'cube',
             'THUMBNAIL_SIZE': 180,
@@ -175,12 +187,65 @@ class Nikola(object):
             'USE_CDN': False,
             'USE_FILENAME_AS_TITLE': True,
             'TIMEZONE': None,
+            'DEPLOY_DRAFTS': True,
+            'DEPLOY_FUTURE': False,
+            'SCHEDULE_ALL': False,
+            'SCHEDULE_RULE': '',
+            'SCHEDULE_FORCE_TODAY': False
         }
 
         self.config.update(config)
 
+        # Make sure we have pyphen installed if we are using it
+        if self.config.get('HYPHENATE') and pyphen is None:
+            print('WARNING: To use the hyphenation, you have to install '
+                  'the "pyphen" package.')
+            print('WARNING: Setting HYPHENATE to False.')
+            self.config['HYPHENATE'] = False
+
+        # Deprecating DISQUS_FORUM
+        # TODO: remove on v7
+        if 'DISQUS_FORUM' in config:
+            print("WARNING: The DISQUS_FORUM option is deprecated, use COMMENT_SYSTEM_ID instead.")
+            if 'COMMENT_SYSTEM_ID' in config:
+                print("WARNING: DISQUS_FORUM conflicts with COMMENT_SYSTEM_ID, ignoring DISQUS_FORUM.")
+            else:
+                self.config['COMMENT_SYSTEM_ID'] = config['DISQUS_FORUM']
+
+        # Deprecating the ANALYTICS option
+        # TODO: remove on v7
+        if 'ANALYTICS' in config:
+            print("WARNING: The ANALYTICS option is deprecated, use BODY_END instead.")
+            if 'BODY_END' in config:
+                print("WARNING: ANALYTICS conflicts with BODY_END, ignoring ANALYTICS.")
+            else:
+                self.config['BODY_END'] = config['ANALYTICS']
+
+        # Deprecating the SIDEBAR_LINKS option
+        # TODO: remove on v7
+        if 'SIDEBAR_LINKS' in config:
+            print("WARNING: The SIDEBAR_LINKS option is deprecated, use NAVIGATION_LINKS instead.")
+            if 'NAVIGATION_LINKS' in config:
+                print("WARNING: The SIDEBAR_LINKS conflicts with NAVIGATION_LINKS, ignoring SIDEBAR_LINKS.")
+            else:
+                self.config['NAVIGATION_LINKS'] = config['SIDEBAR_LINKS']
+        # Compatibility alias
+        self.config['SIDEBAR_LINKS'] = self.config['NAVIGATION_LINKS']
+
+        if self.config['NAVIGATION_LINKS'] in (None, {}):
+            self.config['NAVIGATION_LINKS'] = {self.config['DEFAULT_LANG']: ()}
+
+        # Deprecating the ADD_THIS_BUTTONS option
+        # TODO: remove on v7
+        if 'ADD_THIS_BUTTONS' in config:
+            print("WARNING: The ADD_THIS_BUTTONS option is deprecated, use SOCIAL_BUTTONS_CODE instead.")
+            if not config['ADD_THIS_BUTTONS']:
+                print("WARNING: Setting SOCIAL_BUTTONS_CODE to empty because ADD_THIS_BUTTONS is False.")
+                self.config['SOCIAL_BUTTONS_CODE'] = ''
+
         # STRIP_INDEX_HTML config has been replaces with STRIP_INDEXES
         # Port it if only the oldef form is there
+        # TODO: remove on v7
         if 'STRIP_INDEX_HTML' in config and 'STRIP_INDEXES' not in config:
             print("WARNING: You should configure STRIP_INDEXES instead of STRIP_INDEX_HTML")
             self.config['STRIP_INDEXES'] = config['STRIP_INDEX_HTML']
@@ -189,15 +254,15 @@ class Nikola(object):
         if config.get('PRETTY_URLS', False) and 'STRIP_INDEXES' not in config:
             self.config['STRIP_INDEXES'] = True
 
-        if self.config['COPY_SOURCES'] and not self.config['HIDE_SOURCELINK']:
+        if config.get('COPY_SOURCES') and not self.config['HIDE_SOURCELINK']:
             self.config['HIDE_SOURCELINK'] = True
 
         self.config['TRANSLATIONS'] = self.config.get('TRANSLATIONS',
-                                                      {self.config['DEFAULT_'
-                                                      'LANG']: ''})
+                                                      {self.config['DEFAULT_LANG']: ''})
 
         # SITE_URL is required, but if the deprecated BLOG_URL
         # is available, use it and warn
+        # TODO: remove on v7
         if 'SITE_URL' not in self.config:
             if 'BLOG_URL' in self.config:
                 print("WARNING: You should configure SITE_URL instead of BLOG_URL")
@@ -217,6 +282,7 @@ class Nikola(object):
             "TemplateSystem": TemplateSystem,
             "PageCompiler": PageCompiler,
             "TaskMultiplier": TaskMultiplier,
+            "RestExtension": RestExtension,
         })
         self.plugin_manager.setPluginInfoExtension('plugin')
         if sys.version_info[0] == 3:
@@ -284,8 +350,6 @@ class Nikola(object):
         self._GLOBAL_CONTEXT['SLUG_TAG_PATH'] = self.config[
             'SLUG_TAG_PATH']
 
-        self._GLOBAL_CONTEXT['add_this_buttons'] = self.config[
-            'ADD_THIS_BUTTONS']
         self._GLOBAL_CONTEXT['index_display_post_count'] = self.config[
             'INDEX_DISPLAY_POST_COUNT']
         self._GLOBAL_CONTEXT['use_bundles'] = self.config['USE_BUNDLES']
@@ -296,13 +360,22 @@ class Nikola(object):
         self._GLOBAL_CONTEXT['blog_author'] = self.config.get('BLOG_AUTHOR')
         self._GLOBAL_CONTEXT['blog_title'] = self.config.get('BLOG_TITLE')
 
+        # TODO: remove fallback in v7
         self._GLOBAL_CONTEXT['blog_url'] = self.config.get('SITE_URL', self.config.get('BLOG_URL'))
         self._GLOBAL_CONTEXT['blog_desc'] = self.config.get('BLOG_DESCRIPTION')
-        self._GLOBAL_CONTEXT['analytics'] = self.config.get('ANALYTICS')
+        self._GLOBAL_CONTEXT['body_end'] = self.config.get('BODY_END')
+        # TODO: remove in v7
+        self._GLOBAL_CONTEXT['analytics'] = self.config.get('BODY_END')
+        # TODO: remove in v7
+        self._GLOBAL_CONTEXT['add_this_buttons'] = self.config.get('SOCIAL_BUTTONS_CODE')
+        self._GLOBAL_CONTEXT['social_buttons_code'] = self.config.get('SOCIAL_BUTTONS_CODE')
         self._GLOBAL_CONTEXT['translations'] = self.config.get('TRANSLATIONS')
         self._GLOBAL_CONTEXT['license'] = self.config.get('LICENSE')
         self._GLOBAL_CONTEXT['search_form'] = self.config.get('SEARCH_FORM')
-        self._GLOBAL_CONTEXT['disqus_forum'] = self.config.get('DISQUS_FORUM')
+        self._GLOBAL_CONTEXT['comment_system'] = self.config.get('COMMENT_SYSTEM')
+        self._GLOBAL_CONTEXT['comment_system_id'] = self.config.get('COMMENT_SYSTEM_ID')
+        # TODO: remove in v7
+        self._GLOBAL_CONTEXT['disqus_forum'] = self.config.get('COMMENT_SYSTEM_ID')
         self._GLOBAL_CONTEXT['mathjax_config'] = self.config.get(
             'MATHJAX_CONFIG')
         self._GLOBAL_CONTEXT['subtheme'] = self.config.get('THEME_REVEAL_CONGIF_SUBTHEME')
@@ -312,9 +385,12 @@ class Nikola(object):
         self._GLOBAL_CONTEXT['rss_path'] = self.config.get('RSS_PATH')
         self._GLOBAL_CONTEXT['rss_link'] = self.config.get('RSS_LINK')
 
-        self._GLOBAL_CONTEXT['sidebar_links'] = utils.Functionary(list, self.config['DEFAULT_LANG'])
-        for k, v in self.config.get('SIDEBAR_LINKS', {}).items():
-            self._GLOBAL_CONTEXT['sidebar_links'][k] = v
+        self._GLOBAL_CONTEXT['navigation_links'] = utils.Functionary(list, self.config['DEFAULT_LANG'])
+        for k, v in self.config.get('NAVIGATION_LINKS', {}).items():
+            self._GLOBAL_CONTEXT['navigation_links'][k] = v
+        # TODO: remove on v7
+        # Compatibility alias
+        self._GLOBAL_CONTEXT['sidebar_links'] = self._GLOBAL_CONTEXT['navigation_links']
 
         self._GLOBAL_CONTEXT['twitter_card'] = self.config.get(
             'TWITTER_CARD', {})
@@ -340,7 +416,7 @@ class Nikola(object):
             if self.config['USE_CDN']:
                 bootstrap_path = utils.get_asset_path(os.path.join(
                     'assets', 'css', 'bootstrap.min.css'), self._THEMES)
-                if bootstrap_path.split(os.sep)[-4] != 'site':
+                if bootstrap_path and bootstrap_path.split(os.sep)[-4] not in ['bootstrap', 'bootstrap3']:
                     warnings.warn('The USE_CDN option may be incompatible with your theme, because it uses a hosted version of bootstrap.')
 
         return self._THEMES
@@ -521,6 +597,8 @@ class Nikola(object):
         * tag_index (name is ignored)
         * tag (and name is the tag name)
         * tag_rss (name is the tag name)
+        * category (and name is the category name)
+        * category_rss (and name is the category name)
         * archive (and name is the year, or None for the main archive index)
         * index (name is the number in index-number)
         * rss (name is ignored)
@@ -553,11 +631,24 @@ class Nikola(object):
             path = [_f for _f in [self.config['TRANSLATIONS'][lang],
                                   self.config['TAG_PATH'], name + ".html"] if
                     _f]
+
+        elif kind == "category":
+            if self.config['SLUG_TAG_PATH']:
+                name = utils.slugify(name)
+            path = [_f for _f in [self.config['TRANSLATIONS'][lang],
+                                  self.config['TAG_PATH'], "cat_" + name + ".html"] if
+                    _f]
         elif kind == "tag_rss":
             if self.config['SLUG_TAG_PATH']:
                 name = utils.slugify(name)
             path = [_f for _f in [self.config['TRANSLATIONS'][lang],
                                   self.config['TAG_PATH'], name + ".xml"] if
+                    _f]
+        elif kind == "category_rss":
+            if self.config['SLUG_TAG_PATH']:
+                name = utils.slugify(name)
+            path = [_f for _f in [self.config['TRANSLATIONS'][lang],
+                                  self.config['TAG_PATH'], "cat_" + name + ".xml"] if
                     _f]
         elif kind == "index":
             if name not in [None, 0]:
@@ -708,7 +799,7 @@ class Nikola(object):
                 # We eliminate from the list the files inside any .ipynb folder
                 full_list = [p for p in full_list
                              if not any([x.startswith('.')
-                             for x in p.split(os.sep)])]
+                                         for x in p.split(os.sep)])]
 
                 for base_path in full_list:
                     post = Post(
@@ -728,6 +819,7 @@ class Nikola(object):
                         current_time,
                         self.config['HIDE_UNTRANSLATED_POSTS'],
                         self.config['PRETTY_URLS'],
+                        self.config['HYPHENATE'],
                     )
                     for lang, langpath in list(
                             self.config['TRANSLATIONS'].items()):
@@ -747,6 +839,7 @@ class Nikola(object):
                             '{0}/{1:02d}'.format(post.date.year, post.date.month)].append(post.post_name)
                         for tag in post.alltags:
                             self.posts_per_tag[tag].append(post.post_name)
+                        self.posts_per_category[post.meta('category')].append(post.post_name)
                     else:
                         self.pages.append(post)
                     if self.config['OLD_THEME_SUPPORT']:
@@ -850,3 +943,18 @@ def s_l(lang):
         print("WARNING: could not set locale to {0}."
               "This may cause some i18n features not to work.".format(lang))
     return ''
+
+
+SOCIAL_BUTTONS_CODE = """
+<!-- Social buttons -->
+<div id="addthisbox" class="addthis_toolbox addthis_peekaboo_style addthis_default_style addthis_label_style addthis_32x32_style">
+<a class="addthis_button_more">Share</a>
+<ul><li><a class="addthis_button_facebook"></a>
+<li><a class="addthis_button_google_plusone_share"></a>
+<li><a class="addthis_button_linkedin"></a>
+<li><a class="addthis_button_twitter"></a>
+</ul>
+</div>
+<script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-4f7088a56bb93798"></script>
+<!-- End of social buttons -->
+"""

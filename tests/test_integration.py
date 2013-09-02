@@ -35,7 +35,7 @@ class EmptyBuildTest(unittest.TestCase):
         """Setup a demo site."""
         self.tmpdir = tempfile.mkdtemp()
         self.target_dir = os.path.join(self.tmpdir, "target")
-        self.init_command = nikola.plugins.command_init.CommandInit()
+        self.init_command = nikola.plugins.command.init.CommandInit()
         self.fill_site()
         self.patch_site()
         self.build()
@@ -109,9 +109,9 @@ class FuturePostTest(EmptyBuildTest):
         self.init_command.copy_sample_site(self.target_dir)
         self.init_command.create_configuration(self.target_dir)
 
-        # Add the config option to allow future posts
+        # Change COMMENT_SYSTEM_ID to not wait for 5 seconds
         with codecs.open(os.path.join(self.target_dir, 'conf.py'), "ab+", "utf8") as outf:
-            outf.write('\nFUTURE_IS_NOW = False\n')
+            outf.write('\nCOMMENT_SYSTEM_ID = "nikolatest"\n')
 
         with codecs.open(os.path.join(self.target_dir, 'posts', 'empty1.txt'), "wb+", "utf8") as outf:
             outf.write(
@@ -142,6 +142,14 @@ class FuturePostTest(EmptyBuildTest):
         self.assertFalse('bar.html' in index_data)
         self.assertTrue('foo.html' in sitemap_data)
         self.assertFalse('bar.html' in sitemap_data)
+
+        # Run deploy command to see if future post is deleted
+        with cd(self.target_dir):
+            main.main(["deploy"])
+
+        self.assertTrue(os.path.isfile(index_path))
+        self.assertTrue(os.path.isfile(foo_path))
+        self.assertFalse(os.path.isfile(bar_path))
 
 
 class TranslatedBuildTest(EmptyBuildTest):
